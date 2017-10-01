@@ -77,8 +77,8 @@ void setup() {
     while (digitalRead(TOOL0_pin)){digitalWrite(Blink, HIGH);}     //warten bis LOW vom Target, So lange LED ausschalten
     while (!digitalRead(TOOL0_pin)){}                              //warten bis HIGH vom Target
     
-   
-    pinMode(Pullup_pin, INPUT);                               //Pullup an TOOL0 auf Floating
+    digitalWrite(Pullup_pin, LOW);                               //Anstelle von TOOL0
+    //pinMode(Pullup_pin, INPUT);                               //Pullup an TOOL0 auf Floating
     delayMicroseconds(595);                                   // Nach Quittung vom Target t01 warten sollen 120 sein
    
     //Serielle Kommunikation mit Target starten
