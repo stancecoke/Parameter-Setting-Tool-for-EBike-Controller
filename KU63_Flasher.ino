@@ -28,11 +28,11 @@ byte command[4];                                                  //Array für B
 void setup() {
 
     //array initialisieren erst mal "Get Version" Befehl
-    command[0]=0x01; //SOH
-    command[1]=0x01; //LEN
-    command[2]=0x00; //COM = Reset
-    command[3]=0x01; //Checksum
-    command[4]=0x03; //ETX
+    command[0]=0x01;                                              //SOH
+    command[1]=0x01;                                              //LEN
+    command[2]=0x00;                                              //COM = Reset
+    command[3]=0-(command[1]+command[2]);                         //Checksum
+    command[4]=0x03;                                              //ETX
     
     //Timer initialisieren
     Timer2.setChannel1Mode(TIMER_OUTPUTCOMPARE);                  // Timer2 als einfachen Zähler definieren
@@ -87,11 +87,14 @@ void setup() {
     Serial1.print(0, BYTE);
     delayMicroseconds(10);
     Serial1.print(0, BYTE);
-    delayMicroseconds(300);
+    delayMicroseconds(300);                                       //war 300
+    delay(10);
     Serial1.write(command, 5);                                    //Reset senden
-    command[2]=0x05; //COM = Reset
-    command[3]=0x04; //Checksum
+    command[2]=0xC5; //COM = Reset
+    command[3]=0-(command[1]+command[2]);                         //Checksum
     delayMicroseconds(595);                                       // der ist hier auf verdacht
+
+    delay(10);
 }
 
 void loop() {
