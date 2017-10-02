@@ -21,8 +21,10 @@ void timetic(void);                                                //interruptro
 //Definition Variablen
 
 boolean tic;                                                      //Flag für Timer2
-byte command[4];                                                  //Array für Befehle
-
+byte command[11];                                                  //Array für Befehle
+unsigned int Startadresse;
+unsigned int Endadresse;
+unsigned int Zaehler=0;                                              //Schleifenzähler
 
 
 void setup() {
@@ -90,8 +92,7 @@ void setup() {
     delayMicroseconds(300);                                       //war 300
     delay(10);
     Serial1.write(command, 5);                                    //Reset senden
-    command[2]=0xC5; //COM = Reset
-    command[3]=0-(command[1]+command[2]);                         //Checksum
+    
     delayMicroseconds(595);                                       // der ist hier auf verdacht
 
     delay(10);
@@ -107,12 +108,36 @@ void loop() {
         
         
     }  
+                                    
+ 
     
 //Über Timerinterrupt gesteuerter Hauptschleifenteil
     if (tic){
       tic=LOW;
-      Serial1.write(command, 5);
+     if (Zaehler<16){
+      Startadresse=Zaehler*0x0400;
+      Endadresse=Startadresse+0x03FF;
+      command[1]=0x07;// LEN = 7
+      command[2]=0x32;                                        //COM = Checksum
+      command[5]=Startadresse & 0xFF;                      //Byteweise Start- und Endadresse setzen
+      command[4]=Startadresse>>8 & 0xFF;
+      command[3]=Startadresse>>16 & 0xFF;
+      command[8]=Endadresse & 0xFF;
+      command[7]=Endadresse>>8 & 0xFF;
+      command[6]=Endadresse>>16 & 0xFF;
       
+      
+      unsigned int checksum=command[1]+command[2]+command[3]+command[4]+command[5]+command[6]+command[7]+command[8];
+      command[9]=0-(checksum & 0xFF);                         //Checksum 0- letzte acht bit der Summe
+      command[10]=0x03;                                              //ETX
+      Serial1.write(command, 11);
+      Zaehler=Zaehler+1;
+      /*Serial.println(Zaehler);
+      Serial.println(Startadresse);
+      Serial.println(Startadresse>>8);
+      Serial.println(Startadresse>>16);*/
+      
+     }
       digitalWrite(Blink, !digitalRead(Blink));              //Toggle LED
     }                                                       //Ende des über Timerinterrupt gesteuerten Schleifenteils
 }                                                                 //Ende der Hauptschleife
