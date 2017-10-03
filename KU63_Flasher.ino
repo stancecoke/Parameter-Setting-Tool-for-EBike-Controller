@@ -21,15 +21,19 @@ void timetic(void);                                                //interruptro
 //Definition Variablen
 
 boolean tic;                                                      //Flag für Timer2
-byte command[11];                                                  //Array für Befehle
+byte command[170];                                                  //Array für Befehle
+byte file[170];                                                   //Array für Speicherblock
 unsigned int Startadresse;
 unsigned int Endadresse;
-unsigned int Zaehler=0;                                              //Schleifenzähler
+unsigned int Zaehler=0;                                              //Schleifenzähler für Blockadressierung
+unsigned int checksum;
+unsigned int i;                                                     //Zähler für for-Schleife
+byte receivedbyte;
 
 
 void setup() {
 
-    //array initialisieren erst mal "Get Version" Befehl
+    //array initialisieren erst mal "Reset" Befehl
     command[0]=0x01;                                              //SOH
     command[1]=0x01;                                              //LEN
     command[2]=0x00;                                              //COM = Reset
@@ -103,7 +107,7 @@ void loop() {
  //Kommunikation 
     if (Serial2.available()){
     
-        byte receivedbyte=Serial2.read();                                        //Byte einlesen
+        receivedbyte=Serial2.read();                                        //Byte einlesen
         Serial.print(receivedbyte, BYTE);                                        //Byte an USB ausgeben 
         
         
@@ -114,30 +118,107 @@ void loop() {
 //Über Timerinterrupt gesteuerter Hauptschleifenteil
     if (tic){
       tic=LOW;
-     if (Zaehler<16){
-      Startadresse=Zaehler*0x0400;
-      Endadresse=Startadresse+0x03FF;
-      command[1]=0x07;// LEN = 7
-      command[2]=0x32;                                        //COM = Checksum
-      command[5]=Startadresse & 0xFF;                      //Byteweise Start- und Endadresse setzen
-      command[4]=Startadresse>>8 & 0xFF;
-      command[3]=Startadresse>>16 & 0xFF;
-      command[8]=Endadresse & 0xFF;
-      command[7]=Endadresse>>8 & 0xFF;
-      command[6]=Endadresse>>16 & 0xFF;
+
+     if (Serial.available()){
+      byte receivedSerial=Serial.read();
       
+      switch (receivedSerial) {
+        case 1:
+          Serial.print("Block Blank Check Block ");
+          Serial.println(Zaehler);
+          if (Zaehler<16){
+            Startadresse=Zaehler*0x0400;
+            Endadresse=Startadresse+0x03FF;
+            command[0]=0x01;                                        //SOH
+            command[1]=0x07;                                        // LEN = 7
+            command[2]=0x32;                                        //COM = Block Blank Check
+            command[5]=Startadresse & 0xFF;                         //Byteweise Start- und Endadresse setzen
+            command[4]=Startadresse>>8 & 0xFF;
+            command[3]=Startadresse>>16 & 0xFF;
+            command[8]=Endadresse & 0xFF;
+            command[7]=Endadresse>>8 & 0xFF;
+            command[6]=Endadresse>>16 & 0xFF;
+            checksum=command[1]+command[2]+command[3]+command[4]+command[5]+command[6]+command[7]+command[8];
+            command[9]=0-(checksum & 0xFF);                         //Checksum 0- letzte acht bit der Summe
+            command[10]=0x03;                                       //ETX
+            Serial1.write(command, 11);
+            Zaehler=Zaehler+1;
+          }
+          break;
+        case 2:
+          Serial.println("Upload der Parameterdatei, Senden Sie nun die Parameter-Datei");
+          for (i=0; i < 161; i++){
+           while(!Serial.available()){}                             //Auf Daten warten
+           if (Serial.available()){
+               file[i]=Serial.read(); 
+               Serial.print(file[i], BYTE);
+               Serial.println(i);
+           } 
+          } //Ende der for-Schleife
+          Serial.println("Upload abgeschlossen!");
+          break;
+        case 3:
+            Startadresse=15*0x0400;
+            Endadresse=Startadresse+0x03FF;
+            command[0]=0x01;                                        //SOH
+            command[1]=0x07;                                        // LEN = 7
+            command[2]=0x40;                                        //COM = Program
+            command[5]=Startadresse & 0xFF;                         //Byteweise Start- und Endadresse setzen
+            command[4]=Startadresse>>8 & 0xFF;
+            command[3]=Startadresse>>16 & 0xFF;
+            command[8]=Endadresse & 0xFF;
+            command[7]=Endadresse>>8 & 0xFF;
+            command[6]=Endadresse>>16 & 0xFF;
+            checksum=command[1]+command[2]+command[3]+command[4]+command[5]+command[6]+command[7]+command[8];
+            command[9]=0-(checksum & 0xFF);                         //Checksum 0- letzte acht bit der Summe
+            command[10]=0x03;                                       //ETX
+            Serial1.write(command, 11);
+            Serial.println("Flashvorgang initialisiert!");    
+           break;
+           
+         case 4: //Daten schreiben
+                                                               
+            command[0]=0x02;                                        //Data Frame
+            command[1]=161;                                         //DataLEN = 161
+            checksum=command[1];
+            for (int i=0; i < 161; i++){ 
+              command[i+2]=file[i]; 
+              checksum +=file[i];  
+                       
+            }
+            command[163]=0-(checksum & 0xFF);
+            command[164]=0x03;                                       //ETX
+            Serial1.write(command, 165);
+            
+          Serial.println("Flashvorgang abgeschlossen!");
+          Serial.println(command[163], BYTE);
+          break; 
+           
+        case 5:
+            Startadresse=15*0x0400;
+            Endadresse=Startadresse+0x03FF;
+            command[0]=0x01;                                        //SOH
+            command[1]=0x07;                                        // LEN = 7
+            command[2]=0x22;                                        //COM = Block Erase
+            command[5]=Startadresse & 0xFF;                         //Byteweise Start- und Endadresse setzen
+            command[4]=Startadresse>>8 & 0xFF;
+            command[3]=Startadresse>>16 & 0xFF;
+            command[8]=Endadresse & 0xFF;
+            command[7]=Endadresse>>8 & 0xFF;
+            command[6]=Endadresse>>16 & 0xFF;
+            checksum=command[1]+command[2]+command[3]+command[4]+command[5]+command[6]+command[7]+command[8];
+            command[9]=0-(checksum & 0xFF);                         //Checksum 0- letzte acht bit der Summe
+            command[10]=0x03;                                       //ETX
+            Serial1.write(command, 11);
+            Serial.println("Block Erased!");    
+           break;
+        default:
+          Serial.println("default");
+        break;
+        }//end of switch structure
       
-      unsigned int checksum=command[1]+command[2]+command[3]+command[4]+command[5]+command[6]+command[7]+command[8];
-      command[9]=0-(checksum & 0xFF);                         //Checksum 0- letzte acht bit der Summe
-      command[10]=0x03;                                              //ETX
-      Serial1.write(command, 11);
-      Zaehler=Zaehler+1;
-      /*Serial.println(Zaehler);
-      Serial.println(Startadresse);
-      Serial.println(Startadresse>>8);
-      Serial.println(Startadresse>>16);*/
-      
-     }
+      } //end of Serial available
+ 
       digitalWrite(Blink, !digitalRead(Blink));              //Toggle LED
     }                                                       //Ende des über Timerinterrupt gesteuerten Schleifenteils
 }                                                                 //Ende der Hauptschleife
