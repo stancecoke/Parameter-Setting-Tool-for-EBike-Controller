@@ -1,7 +1,7 @@
 # Parameter-Setting-Tool-for-EBike-Controller
 Open source project for controllers with 78K0R/Kx3 processors like KU63, XCM
 
-Write your personal setting to your controller with the DIY programmer
+Write your personal setting to your controller with the DIY programmer\d
 Caution! This project is in a test phase, I was not able to write the parameters successfully yet. There is the risk of bricking your controller! 
 
 Usage: 
