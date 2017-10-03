@@ -13,8 +13,8 @@ Usage:
 now the controller is ready to receive commands from the STM32 board
 
 there are 5 functions implemented so far.
-send "1" (not Ascii but byte): Read Checksum of Memory Block. Each time you send "1" the next memory block is checked.
-send "2" : you are asked to upload the binary file with the parameter settings (file has to contain 161 byte of data), use the "send file" button from HTERM
-send "3" : Writing to Block 15 gets prepared
-send "4" : Writes Data to Block 15 (here I get no response from the controller, but writing seems to be done. I bricked my controller with this, I don't know if I have the wrong controller or Block 15 is not the right adress)
-send "5" : Erase Block 15
+1. send "1" (not Ascii but byte): Read Checksum of Memory Block. Each time you send "1" the next memory block is checked.
+2. send "2" : you are asked to upload the binary file with the parameter settings (file has to contain 161 byte of data), use the "send file" button from HTERM
+3. send "3" : Writing to Block 15 gets prepared
+4. send "4" : Writes Data to Block 15 (here I get no response from the controller, but writing seems to be done. I bricked my controller with this, I don't know if I have the wrong controller or Block 15 is not the right adress)
+5. send "5" : Erase Block 15
