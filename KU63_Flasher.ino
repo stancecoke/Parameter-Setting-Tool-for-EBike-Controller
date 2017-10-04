@@ -28,7 +28,9 @@ unsigned int Endadresse;
 unsigned int Zaehler=0;                                              //Schleifenzähler für Blockadressierung
 unsigned int checksum;
 unsigned int i;                                                     //Zähler für for-Schleife
+unsigned int Block=15;                                                     //Block in den geschrieben werden soll
 byte receivedbyte;
+int laenge = 256;
 
 
 void setup() {
@@ -125,9 +127,9 @@ void loop() {
       switch (receivedSerial) {
         case 1:
           Serial.print("Block Blank Check Block ");
-          Serial.println(Zaehler);
-          if (Zaehler<16){
-            Startadresse=Zaehler*0x0400;
+          Serial.println(Block);
+          
+            Startadresse=Block*0x0400;
             Endadresse=Startadresse+0x03FF;
             command[0]=0x01;                                        //SOH
             command[1]=0x07;                                        // LEN = 7
@@ -142,8 +144,8 @@ void loop() {
             command[9]=0-(checksum & 0xFF);                         //Checksum 0- letzte acht bit der Summe
             command[10]=0x03;                                       //ETX
             Serial1.write(command, 11);
-            Zaehler=Zaehler+1;
-          }
+            
+          
           break;
         case 2:
           Serial.println("Upload der Parameterdatei, Senden Sie nun die Parameter-Datei");
@@ -157,8 +159,8 @@ void loop() {
           } //Ende der for-Schleife
           Serial.println("Upload abgeschlossen!");
           break;
-        case 3:
-            Startadresse=15*0x0400;
+        case 3: //prepare writing
+            Startadresse=Block*0x0400;
             Endadresse=Startadresse+0x03FF;
             command[0]=0x01;                                        //SOH
             command[1]=0x07;                                        // LEN = 7
@@ -172,30 +174,89 @@ void loop() {
             checksum=command[1]+command[2]+command[3]+command[4]+command[5]+command[6]+command[7]+command[8];
             command[9]=0-(checksum & 0xFF);                         //Checksum 0- letzte acht bit der Summe
             command[10]=0x03;                                       //ETX
+            
             Serial1.write(command, 11);
-            Serial.println("Flashvorgang initialisiert!");    
-           break;
+            
+            
+            while (Serial2.available()){                             //Eigenen Befehl anzeigen (one Wire)
+             
+              receivedbyte=Serial2.read();                                        //Byte einlesen
+              Serial.print(receivedbyte, BYTE);                                        //Byte an USB ausgeben 
+              delayMicroseconds(595);
+              }
+            
            
-         case 4: //Daten schreiben
-                                                               
+         
+         receivedbyte=0;
+         Zaehler =0;
+         while (receivedbyte != 0x03){                             //auf Quittung vom Target warten
+           if (Serial2.available()){    
+              receivedbyte=Serial2.read();                                        //Byte einlesen
+              Serial.print(receivedbyte, BYTE);                                        //Byte an USB ausgeben 
+              }
+            delayMicroseconds(595);
+            Zaehler++;
+            if (Zaehler>10000){
+              Serial.println("Time Out! Target antwortet nicht");
+              receivedbyte = 0x03;
+            }//ende if
+         }
+            
+            Serial.println("Flashvorgang initialisiert!"); 
+            delayMicroseconds(120);                                 // TFD3        
+                                                  
             command[0]=0x02;                                        //Data Frame
-            command[1]=161;                                         //DataLEN = 161
-            checksum=command[1];
-            for (int i=0; i < 161; i++){ 
+            command[1]=laenge;                                         //DataLEN = 161
+            checksum=laenge;
+            for (int i=0; i < laenge; i++){ 
               command[i+2]=file[i]; 
               checksum +=file[i];  
                        
             }
-            command[163]=0-(checksum & 0xFF);
-            command[164]=0x03;                                       //ETX
-            Serial1.write(command, 165);
+            command[laenge+2]=0-(checksum & 0xFF);
+            command[laenge+3]=0x03;                                       //ETX
+            Serial1.write(command, laenge+4);
             
+            while (Serial2.available()){                             //Eigenen Befehl anzeigen (one Wire)
+             
+              receivedbyte=Serial2.read();                                        //Byte einlesen
+              Serial.print(receivedbyte, BYTE);                                        //Byte an USB ausgeben 
+              delayMicroseconds(595);
+              }   
+          
+          receivedbyte=0;
+          Zaehler =0;
+         while (receivedbyte != 0x03){                             //auf Quittung vom Target warten
+           if (Serial2.available()){    
+              receivedbyte=Serial2.read();                                        //Byte einlesen
+              Serial.print(receivedbyte, BYTE);                                        //Byte an USB ausgeben 
+              }
+            Zaehler++;
+            delayMicroseconds(595);
+            if (Zaehler>10000){
+              Serial.println("Time Out! Target antwortet nicht");
+              receivedbyte = 0x03;
+            }//ende if
+              
+         }  //Ende while 
+         delay(200);       
           Serial.println("Flashvorgang abgeschlossen!");
-          Serial.println(command[163], BYTE);
           break; 
+         
+            
            
-        case 5:
-            Startadresse=15*0x0400;
+         case 4: // Block auswählen 
+          Serial.println("Geben sie die gewünschte Block-Nummer ein");
+         
+           while(!Serial.available()){}                             //Auf Daten warten
+           if (Serial.available()){
+               Block=Serial.read(); 
+               } //Ende if
+          Serial.print("gewählter Block: ");
+          Serial.println(Block);
+         break;
+        case 5: //Block erase
+            Startadresse=Block*0x0400;
             Endadresse=Startadresse+0x03FF;
             command[0]=0x01;                                        //SOH
             command[1]=0x07;                                        // LEN = 7
